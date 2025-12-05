@@ -1,318 +1,187 @@
-gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
-const header = document.querySelector(".main_header");
-const navLinks = gsap.utils.toArray(".main_nav a");
-
-// header_nav
-function updateHeaderNav(currentSectionId) {
-    const cleanedId = currentSectionId.startsWith("#") ? currentSectionId.substring(1) : currentSectionId;
-    navLinks.forEach(link => {
-        if (cleanedId === 'intro_logo_section') {
-            link.classList.remove("active");
-            return;
-        }
-
-        if (link.getAttribute("href").includes(cleanedId)) {
-            link.classList.add("active");
-        } else {
-            link.classList.remove("active");
-        }
-    });
-}
-
+const header = document.querySelector('.main_header');
+const paintVideo = document.querySelector(".paint_video");
 
 ScrollTrigger.create({
     trigger: ".paint_section",
     start: "top bottom",
-    onEnter: () => header.classList.add("visible"),
-    onLeaveBack: () => header.classList.remove("visible"),
+    onEnter: () => { header.classList.add('visible'); },
+    onLeaveBack: () => { header.classList.remove('visible'); header.classList.remove('scrolled'); }
 });
 
+// Header Shadow
 ScrollTrigger.create({
     trigger: "body",
-    start: "top -50px",
-    end: "bottom top",
-    toggleClass: {
-        targets: header,
-        className: "scrolled"
+    start: "200px top",
+    onEnter: () => { if (header.classList.contains('visible')) { header.classList.add('scrolled'); } },
+    onLeaveBack: () => { header.classList.remove('scrolled'); }
+});
+
+// Top_btn
+document.querySelector('.top_btn').addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// Paint Section video
+const paintTimeline = gsap.timeline({
+    scrollTrigger: {
+        trigger: ".paint_section",
+        start: "top top",
+        end: "+=1500",
+        scrub: true,
+        pin: true,
+        onEnter: () => { if (paintVideo) { paintVideo.currentTime = 0; paintVideo.play().catch(e => console.error("비디오 재생 실패:", e)); } },
+        onLeave: () => { if (paintVideo) { paintVideo.pause(); paintVideo.currentTime = 0; } },
+        onEnterBack: () => { if (paintVideo) { paintVideo.currentTime = 0; paintVideo.play().catch(e => console.error("비디오 재생 실패:", e)); } },
+        onLeaveBack: () => { if (paintVideo) { paintVideo.pause(); paintVideo.currentTime = 0; } }
     }
 });
 
+const paintTextH2Split = new SplitText(".paint_text .text-animation-wrapper:nth-child(1) h2", { type: "chars" });
+const paintTextPSplit = new SplitText(".paint_text .text-animation-wrapper:nth-child(2) p", { type: "chars" });
 
-navLinks.forEach(link => {
-    link.addEventListener("click", (e) => {
-        e.preventDefault();
-        const targetId = e.target.getAttribute("href");
-        gsap.to(window, {
-            duration: 1,
-            scrollTo: {
-                y: targetId,
-                offsetY: header.offsetHeight
-            },
-            ease: "power2.inOut"
+
+gsap.set([paintTextH2Split.chars, paintTextPSplit.chars], { opacity: 0, y: "1em" }); //폰트 사이즈에 동작하도록
+
+paintTimeline
+    .to(".circle_mask", { clipPath: "circle(150% at center center)", duration: 1.5, ease: "power2.inOut" }, 0)
+    .to(paintTextH2Split.chars, { opacity: 1, y: 0, stagger: 0.05, ease: "power3.out", duration: 0.8 }, 0.5)
+    .to(paintTextPSplit.chars, { opacity: 1, y: 0, stagger: 0.03, ease: "power3.out", duration: 0.8 }, "<0.2");
+
+
+// split text Timing
+function animateSplitText(containerSelector, triggerSelector) {
+    document.querySelectorAll(containerSelector).forEach(element => {
+        const targets = element.querySelectorAll('.text-animation-wrapper > *');
+
+        targets.forEach(targetElement => {
+            if (targetElement.textContent.trim() === '') return;
+
+            const split = new SplitText(targetElement, { type: "chars" });
+
+            gsap.fromTo(split.chars, { opacity: 0, y: "1em" }, {
+                scrollTrigger: {
+                    trigger: triggerSelector || element,
+                    start: "top 70%",
+                    toggleActions: "play reverse play reverse",
+                },
+                opacity: 1,
+                y: 0,
+                stagger: 0.03,
+                ease: "back.out(1.7)",
+                duration: 1
+            });
         });
     });
-}); // nav_scroll_event
+}
 
+// Section title animation
+animateSplitText(".company_title", ".company_title");
+animateSplitText(".content_left", ".content_section");
+animateSplitText(".news_left", ".news_left");
+animateSplitText(".instagram_text", ".instagram_text");
 
-const fullSectionsToPin = gsap.utils.toArray("section").filter(sec => {
-    return !sec.classList.contains("intro_logo_section") &&
-        !sec.classList.contains("invest_section") &&
-        !sec.classList.contains("history_section") &&
-        !sec.classList.contains("gallery_section");
-}); // full_scroll, pixed
-
-fullSectionsToPin.forEach(sec => {
-    let pinEndValue = "bottom top";
-    let snapConfig = {
-        snapTo: 1,
-        duration: 1.2,
-        delay: 0.1,
-        ease: "power2.inOut"
-    };
-    let pinSpacingValue = true;
-
-    if (sec.classList.contains("paint_section")) {
-        pinEndValue = "+=300%";
-        snapConfig = false;
-    } // paint_section
-
-    ScrollTrigger.create({
-        trigger: sec,
-        start: "top top",
-        end: pinEndValue,
-        pin: true,
-        pinSpacing: pinSpacingValue,
-        snap: snapConfig,
-        onEnter: () => updateHeaderNav(sec.id),
-        onEnterBack: () => updateHeaderNav(sec.id),
+// Company Section Animation
+gsap.utils.toArray(".company_row").forEach(row => {
+    gsap.from(row, {
+        scrollTrigger: {
+            trigger: row,
+            start: "bottom bottom",
+            toggleActions: "play reverse play reverse",
+        },
+        y: 50,
+        opacity: 0,
+        duration: 1.5
     });
 });
 
-
-
-
-// video_section
-gsap.timeline({
+// Content Animation
+gsap.from(".content_left p", {
     scrollTrigger: {
-        trigger: ".paint_section",
-        start: "top top",
-        end: "+=200%",
-        scrub: true,
-    }
-}).to(".circle_mask", { clipPath: "circle(150% at center center)", duration: 1.5 });
-
-
-gsap.to(".paint_text", {
-    opacity: 1, y: 0,
+        trigger: ".content_section",
+        start: "top 75%",
+        toggleActions: "play reverse play reverse",
+    },
+    x: -100,
+    opacity: 0,
+    duration: 1
+});
+gsap.from(".product_btn", {
     scrollTrigger: {
-        trigger: ".paint_section",
-        start: "top center",
-        end: "center center",
-        scrub: true,
-    }
+        trigger: ".content_section",
+        start: "top 70%",
+        toggleActions: "play reverse play reverse",
+    },
+    x: -100,
+    opacity: 0,
+    duration: 1,
+    clearProps: "all"
+});
+gsap.from(".content_right img", {
+    scrollTrigger: {
+        trigger: ".content_section",
+        start: "top 75%",
+        toggleActions: "play reverse play reverse",
+    },
+    x: 100,
+    opacity: 0,
+    duration: 1
 });
 
+// News Animation
+// 모두 동시에 시작
+gsap.utils.toArray(".news_card").forEach((card) => {
+    gsap.from(card, {
+        scrollTrigger: {
+            trigger: card,
+            start: "top 90%",
+            toggleActions: "play reverse play reverse",
+        },
+        y: 50,
+        opacity: 0,
+        duration: 1,
+    });
+});
 
-// video_start
+// Instagram Animation
+gsap.utils.toArray(".insta_item").forEach((item, i) => {
+    gsap.from(item, {
+        scrollTrigger: {
+            trigger: item,
+            start: "top 90%",
+            toggleActions: "play reverse play reverse",
+        },
+        y: 50,
+        opacity: 0,
+        duration: 1,
+        delay: i * 0.2
+    });
+});
+
+// Invest Counting
+const countEl = document.querySelector('.count_number');
+const targetCount = parseInt(countEl.getAttribute('data-target'));
+
 ScrollTrigger.create({
-    trigger: ".paint_section",
+    trigger: ".invest_section",
     start: "top center",
     end: "bottom center",
-    onEnter: () => { const video = document.querySelector(".paint_video"); if (video) { const p = video.play(); if (p !== undefined) p.catch(e => console.log(e)); } },
-    onLeaveBack: () => { const video = document.querySelector(".paint_video"); if (video) { video.pause(); video.currentTime = 0; } }
-});
-
-// company_section
-gsap.utils.toArray(".company_section .reveal_item").forEach((el, i) => {
-    const mask = el.querySelector(".wipe_mask");
-    if (mask) {
-        gsap.fromTo(mask, { x: "0%" }, {
-            x: "100%", duration: 1.2, ease: "power2.out",
-            scrollTrigger: {
-                trigger: el,
-                start: "top 75%",
-                toggleActions: "play none none reverse",
-            }
-        });
-    }
-    gsap.fromTo(el, { opacity: 0, y: 50 }, {
-        opacity: 1, y: 0, duration: 1, ease: "power1.out",
-        scrollTrigger: {
-            trigger: el,
-            start: "top 75%",
-            toggleActions: "play none none reverse",
-        }
-    });
-});
-gsap.fromTo(".company_section .company_title.reveal", { opacity: 0, y: 50 }, {
-    opacity: 1, y: 0, duration: 1.2, ease: "power2.out",
-    scrollTrigger: {
-        trigger: ".company_section .company_title.reveal",
-        start: "top 80%",
-        toggleActions: "play none none reverse",
-    }
-});
-
-
-// slideup
-gsap.utils.toArray(".content_section .reveal_item").forEach((el, i) => {
-    gsap.fromTo(el, { opacity: 0, y: 80 }, {
-        opacity: 1, y: 0, duration: 1.2, ease: "power2.out",
-        scrollTrigger: {
-            trigger: el,
-            start: "top 85%",
-            toggleActions: "play none none none",
-        }
-    });
-});
-
-gsap.fromTo(".news_section .news_left.reveal_item", { opacity: 0, y: 80 }, {
-    opacity: 1, y: 0, duration: 1.2, ease: "power2.out",
-    scrollTrigger: {
-        trigger: ".news_section .news_left.reveal_item",
-        start: "top 85%",
-        toggleActions: "play none none none",
-    }
-});
-gsap.utils.toArray(".news_card.reveal_item_fadeinup").forEach((el, i) => {
-    gsap.fromTo(el, { opacity: 0, y: 80 }, {
-        opacity: 1, y: 0, duration: 1, ease: "power1.out",
-        delay: i * 0.15,
-        scrollTrigger: {
-            trigger: el,
-            start: "top 90%",
-            toggleActions: "play none none none",
-        }
-    });
-});
-
-gsap.fromTo(".instagram_section .instagram_text.reveal_item", { opacity: 0, y: 50 }, {
-    opacity: 1, y: 0, duration: 1.2, ease: "power2.out",
-    scrollTrigger: {
-        trigger: ".instagram_section .instagram_text.reveal_item",
-        start: "top 85%",
-        toggleActions: "play none none none",
-    }
-});
-gsap.utils.toArray(".insta_item.reveal_item_fadeinup").forEach((el, i) => {
-    gsap.fromTo(el, { opacity: 0, y: 100 }, {
-        opacity: 1, y: 0, duration: 0.8, ease: "power1.out",
-        delay: i * 0.15,
-        scrollTrigger: {
-            trigger: el,
-            start: "top 90%",
-            toggleActions: "play none none none",
-        }
-    });
-
-    const button = el.querySelector(".insta_button");
-    const originalColor = el.dataset.color || '#ff7f32'; // datacolor
-
-    if (button) {
-        el.addEventListener("mouseenter", () => {
-            button.style.setProperty('--button_hover_bg', originalColor);
-            button.classList.add('hovered');
-        });
-        el.addEventListener("mouseleave", () => {
-            button.classList.remove('hovered');
-        });
-    }
-});
-
-
-// horizontal_scroll_wrapper
-const horizontalSections = document.querySelector(".horizontal_scroll_wrapper");
-const tl = gsap.timeline();
-let countNum = { val: 0 };
-
-tl.to(countNum, {
-    val: 1402,
-    roundProps: "val",
-    onUpdate: () => { document.getElementById("countNum").innerText = Math.floor(countNum.val); },
-    duration: 1,
-    ease: "none"
-}, "startAnimation");
-
-tl.to(".invest_side.left img", { y: "0%", duration: 1, ease: "power2.out" }, "startAnimation");
-tl.to(".invest_side.right img", { y: "0%", duration: 1, ease: "power2.out" }, "startAnimation");
-
-tl.to(horizontalSections, { x: () => -(horizontalSections.scrollWidth - window.innerWidth), duration: 1, ease: "none" });
-
-ScrollTrigger.create({
-    trigger: horizontalSections,
-    start: "top top",
-    end: () => `+=${window.innerHeight * 3}`, // pin duration
-    pin: true,
     scrub: true,
-    animation: tl,
-    invalidateOnRefresh: true,
-    onEnter: () => updateHeaderNav("invest_section"),
-    onEnterBack: () => updateHeaderNav("invest_section"),
+    onUpdate: self => {
+        const currentCount = Math.round(targetCount * self.progress);
+        countEl.innerText = currentCount.toLocaleString();
+    }
 });
 
-
-// gallery
-gsap.utils.toArray(".gallery_header.slide_up_item").forEach((el, i) => {
-    gsap.fromTo(el, { opacity: 0, y: 50 }, {
-        opacity: 1, y: 0, duration: 1, ease: "power2.out",
-        scrollTrigger: {
-            trigger: el,
-            start: "top 85%",
-            toggleActions: "play none none none",
-        }
-    });
-});
-
-gsap.utils.toArray(".gallery_item.slide_up_item").forEach((el, i) => {
-    gsap.fromTo(el, { opacity: 0, y: 50 }, {
-        opacity: 1, y: 0, duration: 0.8, ease: "power2.out",
-        delay: i * 0.15,
-        scrollTrigger: {
-            trigger: el,
-            start: "top 90%",
-            toggleActions: "play none none none",
-        }
-    });
-});
-gsap.fromTo(".gallery_btn_wrap.slide_up_item", { opacity: 0, y: 50 }, {
-    opacity: 1, y: 0, duration: 1, ease: "power2.out",
+// Scroll
+gsap.to(".horizontal_scroll_wrapper", {
+    x: () => -(document.querySelector(".horizontal_scroll_wrapper").scrollWidth - window.innerWidth),
+    ease: "none",
     scrollTrigger: {
-        trigger: ".gallery_btn_wrap.slide_up_item",
-        start: "top 85%",
-        toggleActions: "play none none none",
+        trigger: ".horizontal_scroll_wrapper",
+        pin: true,
+        scrub: 1,
+        end: () => "+=" + (document.querySelector(".horizontal_scroll_wrapper").scrollWidth - window.innerWidth)
     }
-});
-
-
-// topbtn
-const topBtn = document.getElementById("topBtn");
-
-window.addEventListener("scroll", () => {
-    if (window.scrollY > 300) {
-        topBtn.classList.add("show");
-    } else {
-        topBtn.classList.remove("show");
-    }
-});
-
-topBtn.addEventListener("click", () => {
-    gsap.to(window, { duration: 1, scrollTo: 0, ease: "power2.inOut" });
-});
-
-
-
-document.addEventListener("DOMContentLoaded", () => {
-    let initialSectionId = window.location.hash;
-    if (!initialSectionId || initialSectionId === '#intro_logo_section') {
-    } else {
-        updateHeaderNav(initialSectionId);
-    }
-});
-
-ScrollTrigger.create({
-    trigger: ".intro_logo_section",
-    start: "bottom top",
-    onEnter: () => updateHeaderNav("paint_section"),
-    onLeaveBack: () => updateHeaderNav("intro_logo_section"),
 });
